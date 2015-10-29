@@ -23,13 +23,14 @@ Clamp do
     option ["--html"], :flag, "Output coverage results as static html pages"
     option ["--show"], :flag, "Indicate that the static html pages will open automatically"
 
+    option ["--input-format"], "INPUT_FORMAT", "Input format (gcov, profdata)"
+    option ["--scheme"], "SCHEME", "The scheme for which the coverage was generated"
+    option ["--product"], "PRODUCT", "The product (e.g. YourApp.app, YourFramework.framework"
+
     option ["--build-directory", "-b"], "BUILD_DIRECTORY", "The directory where gcno files will be written to. Defaults to derived data."
     option ["--source-directory"], "SOURCE_DIRECTORY", "The directory where your source files are located."
     option ["--output-directory"], "OUTPUT_DIRECTORY", "The directory where your Cobertura XML report will be written to."
     option ["--ignore", "-i"], "IGNORE", "ignore files conforming to a path", :multivalued => true
-
-    option ["--input-format"], "INPUT_FORMAT", "Input format (gcov, profdata)"
-    option ["--scheme"], "SCHEME", "The scheme for which the coverage was generated"
 
     def execute
       puts "Slathering..."
@@ -42,6 +43,7 @@ Clamp do
       setup_coverage_service
       setup_input_format
       setup_scheme
+      setup_product
 
       post
 
@@ -107,11 +109,16 @@ Clamp do
     end
 
     def setup_input_format
-      project.input_format = input_format
+      _if = input_format
+      project.input_format = _if if _if
     end
 
     def setup_scheme
-      project.scheme = scheme
+      project.scheme = scheme if scheme
+    end
+
+    def setup_product
+      project.product = product if product
     end
 
   end
