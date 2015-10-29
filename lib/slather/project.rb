@@ -50,7 +50,7 @@ end
 module Slather
   class Project < Xcodeproj::Project
 
-    attr_accessor :build_directory, :ignore_list, :ci_service, :coverage_service, :coverage_access_token, :source_directory, :output_directory, :xcodeproj, :show_html, :input_format, :scheme
+    attr_accessor :build_directory, :ignore_list, :ci_service, :coverage_service, :coverage_access_token, :source_directory, :output_directory, :xcodeproj, :show_html, :input_format, :scheme, :product
 
     alias_method :setup_for_coverage, :slather_setup_for_coverage
 
@@ -96,7 +96,6 @@ module Slather
 
     def profdata_coverage_files
       files = profdata_llvm_cov_output.split("\n\n")
-
       files.map do |source|
         coverage_file = coverage_file_class.new(self, source)
         !coverage_file.ignored? ? coverage_file : nil
@@ -120,10 +119,14 @@ module Slather
 
       # Find the matching .app, if any
       xctest_bundle_file_directory = Pathname.new(xctest_bundle_file).dirname
-
+      product_bundle_file = Dir["#{xctest_bundle_file_directory}/#{self.product}"].first
       app_bundle_file = Dir["#{xctest_bundle_file_directory}/*.app"].first
       framework_bundle_file = Dir["#{xctest_bundle_file_directory}/*.framework"].first
-      if app_bundle_file != nil
+      
+      if product_bundle_file != nil
+        product_bundle_file_name_noext = Pathname.new(product_bundle_file).basename.to_s.gsub(/\.\w+/, "")
+        "#{product_bundle_file}/#{product_bundle_file_name_noext}"
+      elsif app_bundle_file != nil
         app_bundle_file_name_noext = Pathname.new(app_bundle_file).basename.to_s.gsub(".app", "")
         "#{app_bundle_file}/#{app_bundle_file_name_noext}"
       elsif framework_bundle_file != nil
@@ -141,7 +144,8 @@ module Slather
       if profdata_coverage_dir == nil || (coverage_profdata = Dir["#{profdata_coverage_dir}/**/Coverage.profdata"].first) == nil
         raise StandardError, "No Coverage.profdata files found. Please make sure the \"Code Coverage\" checkbox is enabled in your scheme's Test action or the build_directory property is set."
       end
-      llvm_cov_args = %W(show -instr-profile #{coverage_profdata} #{binary_file})
+      llvm_cov_args = %W(show -arch i386 -instr-profile #{coverage_profdata} #{binary_file})
+      puts "Running 'xcrun llvm-cov #{llvm_cov_args.shelljoin}'"
       `xcrun llvm-cov #{llvm_cov_args.shelljoin}`
     end
     private :profdata_llvm_cov_output
@@ -169,6 +173,7 @@ module Slather
       configure_output_directory_from_yml
       configure_input_format_from_yml
       configure_scheme_from_yml
+      configure_product_from_yml
     end
 
     def configure_build_directory_from_yml
@@ -197,6 +202,10 @@ module Slather
 
     def configure_scheme_from_yml
       self.scheme ||= self.class.yml["scheme"] if self.class.yml["scheme"]
+    end
+
+    def configure_product_from_yml
+      self.product ||= self.class.yml["product"] if self.class.yml["product"]
     end
 
     def ci_service=(service)
